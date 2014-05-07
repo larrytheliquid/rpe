@@ -1,0 +1,1370 @@
+
+%%%%%%%%%%%%%%%%%%%%%%% file typeinst.tex %%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% This is the LaTeX source for the instructions to authors using
+% the LaTeX document class 'llncs.cls' for contributions to
+% the Lecture Notes in Computer Sciences series.
+% http://www.springer.com/lncs       Springer Heidelberg 2006/05/04
+%
+% It may be used as a template for your own input - copy it
+% to a new file with a new name and use it as the basis
+% for your article.
+%
+% NB: the document class 'llncs' has its own and detailed documentation, see
+% ftp://ftp.springer.de/data/pubftp/pub/tex/latex/llncs/latex2e/llncsdoc.pdf
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\documentclass[runningheads,a4paper]{llncs}
+
+\usepackage{amssymb}
+\setcounter{tocdepth}{3}
+\usepackage{graphicx}
+
+\usepackage{amsmath}
+\usepackage{comment}
+\usepackage{url}
+\usepackage{bbm}
+\usepackage[greek,english]{babel}
+\usepackage{ucs}
+\usepackage[utf8x]{inputenc}
+\usepackage{autofe}
+\usepackage{stmaryrd}
+\usepackage{enumitem}
+
+\usepackage{float}
+\floatstyle{boxed}
+\restylefloat{figure}
+
+\DeclareUnicodeCharacter{8988}{\ensuremath{\ulcorner}}
+\DeclareUnicodeCharacter{8989}{\ensuremath{\urcorner}}
+\DeclareUnicodeCharacter{8803}{\ensuremath{\overline{\equiv}}}
+\DeclareUnicodeCharacter{8759}{\ensuremath{\colon\colon}}
+\DeclareUnicodeCharacter{12314}{\ensuremath{\llbracket}}
+\DeclareUnicodeCharacter{12315}{\ensuremath{\rrbracket}}
+\DeclareUnicodeCharacter{10214}{\ensuremath{\llbracket}}
+\DeclareUnicodeCharacter{10215}{\ensuremath{\rrbracket}}
+\DeclareUnicodeCharacter{8614}{\ensuremath{\mapsto}}
+\DeclareUnicodeCharacter{8799}{\ensuremath{\stackrel{?}{=}}}
+\DeclareUnicodeCharacter{8669}{\ensuremath{\leadsto}}
+\DeclareUnicodeCharacter{7496}{\ensuremath{^{d}}}
+
+\usepackage{fancyvrb}
+
+\usepackage[labelfont=bf]{caption}
+
+\usepackage{url}
+\newcommand{\keywords}[1]{\par\addvspace\baselineskip
+\noindent\keywordname\enspace\ignorespaces#1}
+
+\newcommand{\reffig}[1]{Figure \ref{fig:#1}}
+\newcommand{\refsec}[1]{Section \ref{sec:#1}}
+
+\newtheorem{mypartf}{Part$_F$}
+\newtheorem{myparti}{Part$_I$}
+\newtheorem{myparte}{Part$_E$}
+
+\newcommand{\refpartf}[1]{Part$_F$ \ref{partf:#1}}
+\newcommand{\refparti}[1]{Part$_I$ \ref{parti:#1}}
+\newcommand{\refparte}[1]{Part$_E$ \ref{parte:#1}}
+
+\setlength{\topsep}{0.75ex}
+\setlength{\partopsep}{0.75ex}
+
+\newcommand{\mytitle}{Deriving Type Theory\\ using Generic Programming}
+
+\begin{document}
+
+\mainmatter  % start of an individual contribution
+
+% first the title is needed
+\title{\mytitle}
+
+% a short form should be given in case it is too long for the running head
+\titlerunning{\mytitle}
+
+% the name(s) of the author(s) follow(s) next
+%
+% NB: Chinese authors should write their first names(s) in front of
+% their surnames. This ensures that the names appear correctly in
+% the running heads and the author index.
+%
+\author{Larry Diehl}
+%
+\authorrunning{\mytitle}
+% (feature abused for this document to repeat the title also on left hand pages)
+
+% the affiliations are given next; don't give your e-mail address
+% unless you accept that it will be published
+\institute{Portland State University}
+
+%
+% NB: a more complex sample for affiliations and the mapping to the
+% corresponding authors can be found in the file "llncs.dem"
+% (search for the string "\mainmatter" where a contribution starts).
+% "llncs.dem" accompanies the document class "llncs.cls".
+%
+
+\maketitle
+
+
+%% state the problem
+%% say why its an interesting problem
+%% say what your solution achieves
+%% say what follows from your solution
+
+\begin{abstract}
+Typically type theories are defined to be ``open'', meaning that user
+defined datatypes extend the theory with certain axioms.
+The axioms consist of a way to form the type, a way to introduce its
+values, and a way to eliminate its values.
+In contrast,
+in a ``closed'' type theory a datatype is defined in terms of
+primitive encoding constructs. Another primitive can be used
+to form any datatype encoded like this, and two other primitives exist to
+introduce and eliminate any value of a type encoded like this. A major benefit of
+a closed type theory is that it enables generic programming to be
+performed over encoded types.
+
+Closed dependent type
+theories currently exist, but their formation, introduction, and
+elimination primitives do not map exactly to the
+axioms expected from an open type theory. Unfortunately, a user
+must understand low-level details concerning how the types are encoded.
+One solution to this problem is deriving specialized axioms for each
+type in terms of the primitives.
+Even better, I internalize the axioms in terms of the primitives for all
+types at once as generic functions. This avoids the derivation of
+specialized axioms, and retains
+the generic programming advantages of a closed type theory.
+Tim Sheard and I have defined type theoretic axioms as
+internalized generic functions for full dependent type theory. In this
+paper, I demonstrate how to do the same thing more simply for
+non-dependent types. This makes the main ideas accessible, and omits
+many uninformative details.
+\keywords{Generic programming; dependent types; descriptions}
+\end{abstract}
+
+\section{Introduction}
+\label{sec:intro}
+
+Traditionally intentional type theories, such as
+Martin-L{\"o}f Type Theory~\cite{martin1975intuitionistic}, have been defined to be ``open''.
+When a user declares a datatype in an open type theory,
+which I review in detail in \refsec{axiom}, the theory is extended
+with axioms for type formation, value introduction, and value
+elimination. More recently, there have been exciting developments in
+``closed'' type theories, which do not extend the theory with axioms.
+The closed type theory of Chapman et. al.
+~\cite{Chapman:2010:GAL:1932681.1863547,dagand:phd} comes with a fixed set
+of primitives for encoding any user declared datatype. A user can use
+other fixed primitives to form types, introduce values, and eliminate
+values of encoded datatypes. Unfortunately, the primitives for
+interacting with encoded types are low-level and require the user to
+understand the underlying encodings. In \refsec{desc-open} I review
+how to encode inductive types in the closed type theory of
+\cite{Chapman:2010:GAL:1932681.1863547,dagand:phd}, but I still use
+open type theory to define enumeration types in order to develop intuition.
+In \refsec{desc-closed} I review how to also define enumeration types
+in a closed type theory, revealing how verbose and low-level
+definitions written with closed type theory primitives really are.
+Finally, in \refsec{generic} I present my main contribution:
+generic definitions for type formation, value introduction, and
+value elimination that match the expected open type theory axiomatic
+interfaces, but can be defined with the low-level closed type theory
+primitives. With my generic definitions, users need not understand
+low-level closed type theory encodings, but can reap the primary
+benefit of programming in a closed type theory, the ability to perform
+generic programming~\cite{dagand:phd,mcbride2010ornamental,Dagand:2012:TFA:2398856.2364544}. In
+essence, I {\it derive} the standard constructions of type theory via
+generic programming.
+All code
+\footnote{\raggedright{The accompanying source code can be found at
+{\tt https://github.com/larrytheliquid/rpe}}}
+presented and mentioned in this paper has been checked by
+the {\sc Agda}~\cite{norell2007towards} proof assistant.
+
+\section{Open Type Theory Datatype Axioms}
+\label{sec:axiom}
+
+When a user declares a datatype in an open type theory, three kinds of
+axioms are added to the theory.
+
+\begin{description}
+\item[Formation Rule]\hfill \\
+A way to introduce the declared datatype itself. For datatypes without
+parameters, this allows you to refer to the new type in type
+signatures. For datatypes with parameters, you can refer to the new
+type in type signatures by applying it to suitable type parameters.
+\\
+\item[Introduction Rules]\hfill \\
+Ways to introduce values of the declared datatype. An introduction axiom
+exists for every {\it constructor} of the declared datatype.
+\\
+\item[Elimination Rule]\hfill \\
+A way to eliminate values of the declared datatype. The axiomatic
+elimination rule corresponds to a {\it fold} function,
+which performs case analysis and primitive recursion, for the declared
+datatype.
+\end{description}
+
+\subsection{Datatype Declarations}
+
+I use the following inductive datatypes as running examples throughout the
+remainder of this work. Below are the declarations of the datatypes,
+using the syntax that a user would write. 
+
+\begin{verbatim}
+data ℕ : Set where
+  zero : ℕ
+  suc : ℕ → ℕ
+
+data Tree (A B : Set) : Set where
+  leaf₁ : A → Tree A B
+  leaf₂ : B → Tree A B
+  node : Tree A B → Tree A B → Tree A B
+\end{verbatim}
+
+The first type ({\tt ℕ}) is the type of natural numbers, an example of a type
+without any parameters. The other running example ({\tt Tree}) is a
+a tree datatype. The tree is a
+a disjoint sum type encoding a binary tree with two kinds of values at the leaves. The
+tree takes two parameters, and there are 3 constructors: one for branching nodes and two for
+leaf nodes, one for each of the
+parameterized types.
+
+\subsection{Datatype Formation Axioms}
+
+After a user declares a datatype, they may refer to it in type
+signatures. In an open type theory, this is possible because the type
+theory is extended with a formation rule for each declared datatype.
+The formation rules are added to the type theory as axioms. In our
+metatheory language {\sc Agda}, an axiom is called a {\tt postulate}.
+
+\begin{verbatim}
+postulate
+  ℕ : Set
+  Tree : Set → Set → Set
+\end{verbatim}
+
+Notice that the type signature of the parameterized datatype
+{\tt Tree} indicates that its type former is a
+{\it function} type. When using a parameterized type former, a user applies
+the axiom to a type for each parameter. For example, below is the type
+of a tree of natural numbers and other trees of natural numbers.
+
+\begin{verbatim}
+Treeℕs : Set = Tree ℕ (Tree ℕ ℕ)
+\end{verbatim}
+
+\subsection{Datatype Introduction Axioms}
+
+All of the constructors of a declared datatype also extend the theory
+as axioms. Type theoretically constructors are merely axioms just
+like type formation rules, but at the value level. In particular, there are
+no computation rules associated with type formers or constructors.
+
+\begin{verbatim}
+postulate
+  zero : ℕ
+  suc : ℕ → ℕ
+
+  leaf₁ : {A B : Set} → A → Tree A B
+  leaf₂ : {A B : Set} → B → Tree A B
+  node : {A B : Set} → Tree A B → Tree A B → Tree A B
+\end{verbatim}
+
+Notice that the constructors of parameterized types take the type
+parameters as implicit arguments. In {\sc Agda} an implicit argument
+is surrounded by curly braces. {\sc Agda} attempts to infer any
+implicit arguments of a function when it is applied. In the special
+case where the types of inferred arguments are {\tt Set} (like all the
+examples above), the solutions {\tt Agda} finds correspond to the
+solutions that Hindley-Milner~\cite{milner1978theory} type inference would find.
+
+Because we are defining inductive types, rules such as {\tt suc} can
+be used to build up values of inductive types.
+
+\begin{verbatim}
+one   : ℕ = suc zero
+two   : ℕ = suc (suc zero)
+three : ℕ = suc two
+\end{verbatim}
+
+Below we define a tree of numbers in the expected way. The type of the
+tree of numbers is our previously defined {\tt Treeℕs}. The tree
+constructors correctly infer their expected datatype parameters.
+
+\begin{verbatim}
+some-tree : Treeℕs
+some-tree = node
+  (node (leaf₁ zero) (leaf₁ one))
+  (leaf₂ (node (leaf₁ two) (leaf₁ three)))
+\end{verbatim}
+
+\subsection{Datatype Elimination Axioms}
+
+When a user declares a datatype, the theory is extended with an
+elimination rule for that datatype. Just like with type formers and
+constructors, this extends the theory with an axiom,
+this time for {\it using} the elimination rule.
+
+For example, the axiom for the elimination rule of natural numbers
+is given below. In the {\tt zero} branch, the user must construct a value of
+the return type without any arguments. In the {\tt suc} branch, the
+user must also construct a value of the return type, but receives
+the predecessor and the recursive call applied to the predecessor as
+arguments.
+
+\begin{verbatim}
+postulate
+  foldℕ : {X : Set} (czero : X) (csuc : ℕ → X → X) → ℕ → X
+\end{verbatim}
+
+Unlike type formers and constructors, the elimination rule has
+additional computational content. Thus the theory must also be
+extended with axioms that allow the elimination rule to {\it compute}.
+This is accomplished by extending the
+{\it definitional equality} judgment ({\tt ≡}), which defines the
+semantics of the theory in terms of equalities, with axioms showing how
+the elimination rule computes for each constructor ({\tt zero} and
+{\tt suc}).
+
+\begin{verbatim}
+postulate
+  foldℕ-zero : {X : Set} {czero : X} {csuc : ℕ → X → X}
+    → foldℕ czero csuc zero ≡ czero
+  foldℕ-suc : {X : Set} {czero : X} {csuc : ℕ → X → X} {n : ℕ}
+    → (foldℕ czero csuc (suc n) ≡ csuc n (foldℕ czero csuc n))
+\end{verbatim}
+
+For legibility and familiarity, below I define the remaining
+elimination rules by pattern matching instead. Below the type
+signature of each elimination rule is equal to the axiomatic type
+signature, and the pattern match clauses correspond to the axioms
+added to the definitional equality judgment.
+
+\begin{verbatim}
+foldℕ : {X : Set} (czero : X) (csuc : ℕ → X → X) → ℕ → X
+foldℕ czero csuc zero = czero
+foldℕ czero csuc (suc n) = csuc n (foldℕ czero csuc n)
+
+foldTree : {X A B : Set} (cleaf₁ : A → X) (cleaf₂ : B → X)
+  (cnode : Tree A B → X → Tree A B → X → X) → Tree A B → X
+foldTree cleaf₁ cleaf₂ cnode (leaf₁ a) = cleaf₁ a
+foldTree cleaf₁ cleaf₂ cnode (leaf₂ b) = cleaf₂ b
+foldTree cleaf₁ cleaf₂ cnode (node t₁ t₂) =
+  cnode t₁ (foldTree cleaf₁ cleaf₂ cnode t₁)
+        t₂ (foldTree cleaf₁ cleaf₂ cnode t₂)
+\end{verbatim}
+
+Recall that elimination rules, expressed as folds, perform both case analysis
+and primitive recursion. The fold for natural numbers is recognizable
+as the primitive recursion operator for natural numbers, and the fold
+for other types is just a generalization of this operator. Notice that
+the {\tt cnode} argument of {\tt foldTree} receives two recursive
+call arguments (those of type {\tt X}), one after each recursive
+argument (the sub-trees of type {\tt Tree A B}).
+
+As an example, below I define addition in terms of primitive recursion.
+Note that the return type of {\tt foldℕ} below is the function
+type {\tt ℕ → ℕ},
+which is why the {\tt zero} case has an argument, and why the
+{\tt suc} case returns a function.
+
+\begin{verbatim}
+add : ℕ → ℕ → ℕ
+add = foldℕ
+  (λ n → n)
+  (λ m rec → (λ n → suc (rec n)))
+\end{verbatim}
+
+As a final example, I define a ``map'' function for trees.
+Below the return type of
+{\tt foldTree} is just {\tt Tree X Y}, so the
+{\tt leaf₁} and {\tt leaf₂} cases are not
+functions and the {\tt node} case does not return a function.
+
+\begin{verbatim}
+mapTree : {A B X Y : Set}
+  (f : A → X) (g : B → Y) → Tree A B → Tree X Y
+mapTree f g = foldTree
+  (λ a → leaf₁ (f a))
+  (λ b → leaf₂ (g b))
+  (λ t₁ rec₁ t₂ rec₂ → node rec₁ rec₂)
+\end{verbatim}
+
+
+\section{Closed Type Theory Datatype Definitions
+  \\with Open Type Theory Enumerations}
+\label{sec:desc-open}
+
+When a user declares a datatype in a closed type theory, the
+declaration is translated into a definition of the datatype in terms of
+existing encoding primitives. Other primitives can then be used to form the
+type, introduce its values, and eliminate its values. Code using the
+formation, introduction, and elimination primitives is more verbose
+than code using the axiomatic equivalents, but the primitives and
+axioms are equally expressive. In this section I demonstrate how to
+use the various primitives. I define inductive types in terms of
+the primitives, but axiomatically declare simple enumeration datatypes
+and use dependent pattern matching (of the metalanguage) rather than elimination primitives
+in certain places. Using an open type theory for the enumeration types
+makes it easier to get acquainted with this material, and in the next
+section (\refsec{desc-closed}) I show how to also define the
+enumerations in a closed type theory.
+
+\subsection{Datatype Constructor Enumerations}
+
+I define inductive datatypes as a sum (the constructors of the
+datatype) of products (the arguments of each constructor). 
+
+The sum part of an inductive datatype can be represented independently
+as an enumeration, where each element of the enumeration represents a
+constructor. As such, an enumeration can be considered an inductive datatype
+made solely of constructors that have no arguments. Below are the
+enumerations for the type of natural numbers and the type of trees. By
+convention, each enumeration type and constructor name ends with
+{\tt T}, standing for {\it tag}.
+
+\begin{verbatim}
+data ℕT : Set where
+  zeroT sucT : ℕT
+
+data TreeT : Set where
+  leaf₁T leaf₂T nodeT : TreeT
+\end{verbatim}
+
+\subsection{Primitive Datatype Encodings}
+
+Any user-specified datatype declaration is translated into a
+definition using datatype encoding primitives. The type of encoding
+primitives is called {\tt Desc}, standing for {\it descriptions} of a
+datatype.
+
+Below, the first three constructors of {\tt Desc} are used to specify
+the types of arguments that a user-declared constructor expects.
+{\tt End} is used for a constructor without any arguments, or to
+indicate that a constructor takes no additional arguments.
+{\tt Rec} is used to specify that the
+constructor takes a recursive argument. Finally,
+{\tt Arg} is used to specify that the constructor takes a
+non-recursive argument.
+
+\begin{verbatim}
+data Desc : Set where
+  End : Desc
+  Rec : (D : Desc) → Desc
+  Arg : (A : Set) (D : Desc) → Desc
+  Sum : (T : Set) (B : T → Desc) → Desc
+\end{verbatim}
+
+The fourth constructor of {\tt Desc}, {\tt Sum}, is used to specify
+the enumeration type that represents the user-declared constructor
+names. This {\it sum} contains the {\it product} of arguments for
+each constructor in terms of {\tt End}, {\tt Rec}, and {\tt Arg}. The
+sum is represented as a {\it dependent function} that computes a
+description of arguments for each constructor tag.
+
+For example, the description of the datatype of natural numbers is
+encoded as {\tt ℕD} below. {\tt ℕD} is defined to be a {\tt Sum},
+using the previously defined enumeration of natural number
+constructors {\tt ℕT}, and the function {\tt ℕC : ℕT → Desc} defined
+below.
+
+\begin{verbatim}
+ℕD : Desc = Sum ℕT ℕC
+\end{verbatim}
+
+The arguments that each natural number constructor takes is specified
+by the function {\tt ℕC}. This function takes as input the natural
+number constructor tag, and
+produces as output a description of the expected arguments. Below,
+{\tt ℕC} indicates that the {\tt zero} constructor takes no arguments,
+and the {\tt suc} constructor takes a single recursive argument.
+
+\begin{verbatim}
+ℕC : ℕT → Desc
+ℕC zeroT = End
+ℕC sucT = Rec End
+\end{verbatim}
+
+The type of trees can be specified similarly. Unlike the type of
+natural numbers, the type of trees is a parameterized datatype.
+Therefore, its constructor arguments function ({\tt TreeC}) takes the
+parameter types as additional arguments. Similarly, the description
+of the tree datatype ({\tt TreeD}) is also a function from the parameter
+types to a description.
+
+\begin{verbatim}
+TreeD : Set → Set → Desc = λ A B → Sum TreeE (TreeC A B)
+
+TreeC : Set → Set → TreeT → Desc
+TreeC A B leaf₁T = Arg A End
+TreeC A B leaf₂T = Arg B End
+TreeC A B nodeT  = Rec (Rec End)
+\end{verbatim}
+
+{\tt TreeC} indicates that the {\tt leaf₁} and {\tt leaf₂}
+constructors each take one non-recursive argument,
+and the {\tt node} constructor takes two recursive arguments.
+
+\subsection{Defining Type Formers and Constructors using Primitives}
+
+I previously demonstrated how to encode datatype declarations using
+constructors of {\tt Desc} as primitives. This primitive description
+of a datatype can be turned into a type former by
+applying the primitive {\tt μ} to the description. The value-constructor of
+{\tt μ}, {\tt init}, is the primitive used to introduce values of
+user-declared datatypes.
+
+\begin{verbatim}
+data μ (D : Desc) : Set where
+  init : El D (μ D) → μ D
+\end{verbatim}
+
+For those with a category theory background, any description encodes a
+strictly positive pattern functor. Type formers can then be
+represented by taking the {\it least fixed point} ({\tt μ}) of a pattern functor. A
+value is introduced with the {\it initial algebra} constructor {\tt init}.
+The argument to {\tt init} has type {\tt El D (μ D)}, where
+{\tt El D} computes the pattern functor encoded by {\tt D}, and
+applies said functor to object {\tt μ D}. In other words, {\tt El D}
+computes the functor {\tt F}, recognizable in the more common
+definition below.
+
+\begin{verbatim}
+data μ (F : Functor) : Set where
+  init : F (μ F) → μ F
+\end{verbatim}
+
+Category theory aside, {\tt El} can be considered the interpretation
+function of descriptions, which interprets a description-based encoding
+as a concrete datatype. In dependent type theory parlance, {\tt Desc}
+is considered a universe~\cite{martin1975intuitionistic} of codes, and {\tt El} interprets each
+code representing a type as the set of {\it elements} of that type.
+
+\begin{verbatim}
+El : (D : Desc) → Set → Set
+El End X = ⊤
+El (Rec D) X = X × El D X
+El (Arg A D) X = A × El D X
+El (Sum T B) X = Σ T (λ t → El (B t) X)
+\end{verbatim}
+
+The computational type {\tt El} interprets every description as a
+{\it right-nested product} that ends in the unit type ({\tt ⊤}).
+The {\tt End} constructor gets interpreted as the trivial unit type
+{\tt ⊤}. The {\tt Arg} constructor gets interpreted as a product type,
+where the domain is a value of the requested type {\tt A}, and the
+codomain is the type of the remainder of the interpreted description.
+Besides the description, {\tt El} takes an additional
+type argument ({\tt X}). Like {\tt Arg}, {\tt Rec} is interpreted as a product
+type, but the domain requests a value of the additional argument type
+{\tt X}. Finally, {\tt Sum} is interpreted as a dependent product. In
+practice, the domain will always be an enumeration tag, representing
+the various constructors of the datatype. The codomain will be a
+dependent type, returning a different product of arguments for each
+constructor tag of the domain.
+
+With the type former and value introduction primitives -- {\tt μ} and
+{\tt init} respectively -- in place, we can now define equivalents of
+the axiomatic type formers and value introducers in terms of the
+primitives. From now on I will prefix each encoded definition (type former,
+constructor, function, etc.) with a backtick ({\tt `}). For example,
+below the encoded type former of natural numbers is defined to be {\tt `ℕ},
+not to be confused with the type of natural numbers {\tt ℕ} used in
+the metalanguage.
+
+The encoded type former of the natural numbers {\tt `ℕ} is defined
+by applying the fixpoint constructor to the description of natural
+numbers.
+
+\begin{verbatim}
+`ℕ : Set = μ ℕD
+\end{verbatim}
+
+The encoded type former of trees {\tt `Tree} is a little bit
+more complex, because it's a {\it function} that passes its arguments to the
+{\it function} that produces a description of the tree type when given
+datatype parameters.
+
+\begin{verbatim}
+`Tree : Set → Set → Set = λ A B → μ (TreeD A B)
+\end{verbatim}
+
+Because I represent all inductive datatypes in sum-of-products style,
+a constructor of such an encoded datatype is defined as
+{\tt init} applied to a pair, where the first argument is the tag
+naming the constructor and the second argument is product of arguments
+specified by the description for that constructor. For example, below
+the {\tt zeroT} tag is followed by the
+unit value {\tt tt}, because the {\tt `zero} constructor does not
+expect arguments. On the other hand, the successor constructor
+{\tt `suc} is a function that demands a recursive natural number
+argument, then terminates with the unit value {\tt tt}.
+
+\begin{verbatim}
+`zero : `ℕ = init (zeroT , tt)
+`suc  : `ℕ → `ℕ = λ n → init (sucT , n , tt)
+\end{verbatim}
+
+The tree constructors are similar to
+natural number constructors. The main difference is that they expect
+the datatype parameters of the tree as an implicit arguments
+{\tt \{A B : Set\}}.
+
+\begin{verbatim}
+`leaf₁ : {A B : Set} → A → `Tree A B
+`leaf₁ a = init (leaf₁T , a , tt)
+
+`leaf₂ : {A B : Set} → B → `Tree A B
+`leaf₂ b = init (leaf₂T , b , tt)
+
+`node : {A B : Set} → `Tree A B → `Tree A B → `Tree A B
+`node t₁ t₂ = init (nodeT , t₁ , t₂ , tt)
+\end{verbatim}
+
+\subsection{Defining Functions using the Elimination Primitive}
+
+In \refsec{axiom} I showed how to write some simple functions
+using axiomatic {\it folds}. Whereas in an open type theory we have a
+separate fold axiom for each datatype, in a closed type theory we have
+a single primitive elimination rule that works on any encoded
+datatype. The type of the primitive elimination rule, {\tt cata}, is
+given below. I omit it's definition, which is not necessary to
+understand the rest of this work.
+
+\begin{verbatim}
+cata : (D : Desc) (X : Set) (α : Recs D (μ D) X → X) → μ D → X
+Recs : (D : Desc) (X Y : Set) → Set = λ D X Y → El D (X × Y)
+\end{verbatim}
+
+Category theoretically, {\tt cata} is the {\it catamorphism} from the
+{\it initial algebra} primitive {\tt init}. The {\tt X} argument is
+the return type of the function being defined in terms of {\tt cata}.
+The algebra argument {\tt α} is a function from the interpretation of
+the eliminated datatype's description, to the return type of the
+function. Above {\tt Recs} is a type synonym for an interpretation
+function that requires a pair of arguments at recursive positions of a
+datatype description. In the case of {\tt cata}, the left component of
+the tuple represents the recursive values of the datatype being
+eliminated, {\tt μ D}, while the right component represents primitive
+recursive calls whose type equals the return type of the function
+being defined, {\tt X}.
+
+For example, below I define the addition function on natural numbers
+using the primitive {\tt cata}.
+
+\begin{verbatim}
+`add : `ℕ → `ℕ → `ℕ = cata ℕD (`ℕ → `ℕ) addα
+
+addα : Recs ℕD `ℕ (`ℕ → `ℕ) → `ℕ → `ℕ
+addα (zeroT , tt) n = n
+addα (sucT , (m , rec) , tt) n = `suc (rec n)
+\end{verbatim}
+
+Writing {\tt `add} in terms of {\tt cata} seems easy enough, but the
+complexity lies in defining the algebra argument {\tt addα}. The first
+argument to the algebra consists of all constructors of natural
+numbers, with each constructor containing its arguments and recursive
+calls to the algebra being defined.
+
+The axiomatic {\tt foldℕ}
+has separate branches for each constructor, with each branch accepting
+a curried function taking constructor arguments and recursive calls.
+In contrast, when defining {\tt addα} we must first case analyze the
+packaged dependent product of constructors by performing a dependent
+pattern match on the constructor tags
+(i.e. {\tt zeroT} and {\tt sucT}). Then, for each constructor branch
+we must correctly project out any standard arguments, recursive
+arguments, and recursive calls.
+
+The definition of {\tt addα} above
+may seem tidy, but it is only so because it takes advantage of
+dependent pattern matching in the metalanguage. In \refsec{desc-closed}
+we see the verbosity of defining this algebra without using the
+metalanguage, where we only have access to closed type theory
+primitives. Below is {\tt `mapTree} where {\tt mapTreeα} is also defined
+using pattern matching in the metatheory. Defining {\tt `mapTree} uses
+the same techniques required to define {\tt `add}, and the definition
+below can be compared with {\tt mapTree} defined in terms of
+{\tt foldTree} in \refsec{axiom}. 
+
+\begin{verbatim}
+`mapTree : {A B X Y : Set}
+  (f : A → X) (g : B → Y) → `Tree A B → `Tree X Y
+`mapTree {A} {B} {X} {Y} f g =
+  cata (TreeD A B) (`Tree X Y) (mapTreeα A B X Y f g)
+
+mapTreeα : (A B X Y : Set) (f : A → X) (g : B → Y)
+  → Recs (TreeD A B) (`Tree A B) (`Tree X Y) → `Tree X Y
+mapTreeα A B X Y f g (leaf₁T , a , tt) = `leaf₁ (f a)
+mapTreeα A B X Y f g (leaf₂T , b , tt) = `leaf₂ (g b)
+mapTreeα A B X Y f g (nodeT , (t₁ , rec₁) , (t₂ , rec₂) , tt) =
+  `node rec₁ rec₂
+\end{verbatim}
+
+\section{Closed Type Theory Datatype Definitions
+  \\with Closed Type Theory Enumerations}
+\label{sec:desc-closed}
+
+In \refsec{desc-open} we learned how to define type formers,
+constructors, and function definitions in terms of primitives of a
+closed type theory. However, we still used an open type theory to
+axiomatically declare enumeration tag types, and used the metalanguage to perform
+dependent pattern matching on dependent products whose left component is
+a tag. Now we will see how to define any tag type in a closed type
+theory, as well as the closed type theory elimination rules necessary
+to avoid using metalanguage pattern matching.
+
+\subsection{Datatype Constructor Enumerations}
+
+In the closed type theory construction, we define enumerations and
+tags separately. An {\it enumeration} is just a type synonym for a list of
+strings, each string representing a constructor name. A {\it tag} is
+indexed by an enumeration, and represents a pointer to a particular
+string in the enumeration.
+
+\begin{verbatim}
+Enum : Set = List String
+
+data Tag : Enum → Set where
+  here : ∀{l E} → Tag (l ∷ E)
+  there : ∀{l E} → Tag E → Tag (l ∷ E)
+\end{verbatim}
+
+A tag can either point {\tt here}, pointing at the string at the front
+of the enumeration, or {\tt there}, pointing somewhere beyond the front
+of the enumeration.
+
+The elimination rule for tags is {\tt case}. {\tt case} takes a product of
+values, one for each enumeration string, and returns the value pointed
+to by a tag argument.
+
+\begin{verbatim}
+case : {E : Enum}
+  (P : Tag E → Set) (cs : Branches E P) (t : Tag E) → P t
+case P (c , cs) here = c
+case P (c , cs) (there t) = case (λ t → P (there t)) cs t
+\end{verbatim}
+
+Above {\tt Branches} is the type for the product of values.
+Each value in the {\tt Branches} product can be a different type, where
+the type for each enumeration string is determined by the argument
+{\tt (P : Tag E → Set)}. For this reason, the dependent return type of
+{\tt case} is {\tt P t}, which is the type in {\tt Branches} that the
+tag argument {\tt t} points to.
+
+Now, we can {\it define} the tag types -- and their constructors -- in
+a closed type theory, which were previously axioms of an open type theory.
+
+\begin{verbatim}
+ℕE : Enum = "zero" ∷ "suc" ∷ []
+TreeE : Enum = "leaf₁" ∷ "leaf₂" ∷ "node" ∷ []
+ℕT : Set = Tag ℕE
+TreeT : Set = Tag TreeE
+zeroT : ℕT = here
+sucT : ℕT = there here
+leaf₁T : TreeT = here
+leaf₂T : TreeT = there here
+nodeT : TreeT = there (there here)
+\end{verbatim}
+
+\subsection{Primitive Datatype Encodings}
+
+When we previously defined (in \refsec{desc-open}) the type of datatype descriptions
+{\tt Desc}, we used the {\tt Sum} constructor to encode a sum of
+constructors. However, the types that the sum constructor
+({\tt Sum : (T : Set) (B : T → Desc) → Desc}) can encode, include any dependent
+arguments. In this paper we are only interested in encoding
+non-dependent types, so we can now specialize {\tt Sum} to require our
+now internalized {\tt Enum} as its first argument, and a {\tt Tag} of
+that enumeration as the domain of its second (dependent) argument.
+
+\begin{verbatim}
+data Desc : Set where
+  -- same End, Rec, and Arg as previous Desc
+  Sum : (E : Enum) (B : Tag E → Desc) → Desc
+\end{verbatim}
+
+Now when we define descriptions as sums of products, the first
+argument to the {\tt Sum} constructor becomes an enumeration (rather
+than a tag type like {\tt ℕT}).
+
+\begin{verbatim}
+ℕD : Desc = Sum ℕE ℕC
+TreeD : Set → Set → Desc = λ A B → Sum TreeE (TreeC A B)
+\end{verbatim}
+
+The second argument to the sum still specifies product of arguments
+for each constructor in the sum, and its type remains a function from
+a tag to a description of arguments.
+However, we can now define the second argument function in terms of
+our closed type theory primitive {\tt case}. The argument to
+{\tt case} is a product of descriptions, and the product ends in the
+value ({\tt tt}) of type unit.
+
+\begin{verbatim}
+ℕC : Tag ℕE → Desc = case (λ _ → Desc) (End , Rec End , tt)
+
+TreeC : Set → Set → Tag TreeE → Desc
+TreeC A B = case (λ _ → Desc)
+  (Arg A End , Arg B End , Rec (Rec End) , tt)
+\end{verbatim}
+
+Finally, we do not reiterate the section on defining type formers and
+constructors because all of the previous definitions are still type
+correct after replacing the open tag types with our new closed ones!
+
+\subsection{Defining Functions using the Elimination Primitive}
+
+The definitions of {\tt `add} and {\tt `mapTree}, using open type
+theory enumerations, do not change when using our closed type theory
+enumerations. However, the algebra arguments can no longer use
+metalanguage dependent pattern matching, and must now use
+{\tt case} instead.
+
+\begin{verbatim}
+addα : Recs ℕD `ℕ (`ℕ → `ℕ) → `ℕ → `ℕ
+addα m = case AddConvoy
+  (zeroBranch , sucBranch , tt)
+  (proj₁ m)
+  (proj₂ m)
+\end{verbatim}
+
+Recall that every user defined datatype is encoded as a dependent
+product, where the first component is a tag representing a constructor,
+and the second component contains a product of arguments whose types
+are computed from the value of the tag in the first component.
+Our algebra must
+eliminate the tag in the first component using {\tt case}, and ensure that the type dependency
+in the second component of the pair correctly unfolds according to the
+tag eliminated in the first component. 
+
+When using dependent pattern
+matching on a dependent product, this dependency between the left and
+right components is automatically remembered. But, in a closed theory
+(withpout pattern matching) we must make this explicit.  This is
+the role of the {\it convoy pattern}~\cite{chlipala2011certified}
+that lets us simulate what dependent pattern matching does automatically.
+
+
+
+\begin{verbatim}
+AddConvoy : ℕT → Set
+AddConvoy t = Recs (ℕC t) `ℕ (`ℕ → `ℕ) → `ℕ → `ℕ
+\end{verbatim}
+
+To accomplish this, the return type of {\tt case} is determined by the
+{\tt AddConvoy} argument, which is a function from a tag to another
+type. In this case {\tt AddConvoy} returns a type with two arguments.
+The first argument is the product of arguments for the particular tag
+being case analyzed. Because {\tt AddConvoy} receives this tag as an
+argument, the type of this product correctly unfolds when passing
+{\tt AddConvoy} to {\tt case} in {\tt addα}. The type of the second
+argument returned by {\tt AddConvoy} is just a natural number
+representing the second argument of the {\tt `add} function, and the
+return type is a natural number representing the return type of
+{\tt `add}.
+
+The final arguments to {\tt case} in the definition of
+{\tt addα} are the branches of the case statement.
+First consider the {\tt `zero} branch.
+
+\begin{verbatim}
+zeroBranch : AddConvoy zeroT = λ u n → n
+\end{verbatim}
+
+When the first argument of {\tt `add} is {\tt `zero}, we return the
+second argument {\tt n}. However, the {\tt `zero} branch still
+somewhat annoyingly receives a value ({\tt u}) of type unit
+argument, because the encoding of the arguments of the {\tt `zero}
+constructor is the singleton product of type unit.
+Now consider the {\tt `suc} branch.
+
+\begin{verbatim}
+sucBranch : AddConvoy sucT
+sucBranch m-rec-u n =
+  let u   = proj₂ m-rec-u
+      m   = proj₁ (proj₁ m-rec-u)
+      rec = proj₂ (proj₁ m-rec-u)
+  in `suc (rec n)
+\end{verbatim}
+
+The first argument to the branch is the product of arguments for the
+{\tt `suc} constructor, ending in a value of type unit. Without
+pattern matching we must be careful to correctly project out the
+constructor arguments and recursive calls for any recursive arguments
+(for the successor constructor, there is only a single recursive
+argument and a single recursive call for it). You can verify that
+these projections are correct by comparing them to the pattern
+matching version in \refsec{desc-open}.
+
+Defining the algebra argument and convoy for the {\tt `mapTree}
+function is not significantly different from the corresponding
+definitions for {\tt `add}, and I omit the definitions here for space
+reasons.
+
+\section{Closed Type Theory Datatype Definitions
+  \\of Open Type Theory Axioms}
+\label{sec:generic}
+
+\refsec{desc-closed} demonstrates how to define type formers,
+constructors, and function definitions using primitives in a closed
+type theory. Unfortunately, a user is required to understand how
+datatypes are encoded in order to write such definitions using
+primitives. Definitions in terms of primitives are more verbose and
+tricky to understand, compared to the axioms generated by an open type
+theory. A user must constantly be aware of things like the product
+structure generated by datatype encodings, where recursive arguments
+appear as a tuple within the outer product of arguments, the fact that the product ends in a unit
+argument that can be ignored, and the fact that arguments can be implicit
+because they correspond to parameters of a datatype such as
+{\tt Tree}.
+
+This section contains the novel contribution of this work. I define
+generic functions for type formers, constructors, and folds in terms
+of closed type theory primitives, but having the familiar interface of
+the corresponding axioms from an open type theory.
+
+\subsection{Parameter-Aware Datatype Encodings}
+
+So far the way I have handled the differences between encodings for, and
+functions operating on, datatypes without parameters (e.g. {\tt `ℕ})
+and datatypes with parameters (e.g. {\tt `Tree}), has been rather
+ad hoc. The ``axiomatic'' interfaces of type formers, constructors, and
+folds treat datatype parameters in special ways. For example, an
+axiomatic constructor of a parameterized type expects all of its
+datatype parameters up front as implicit arguments, rather than
+explicit arguments. Thus, in order to derive ``axioms'' as generic
+functions, our notion of a datatype encoding will need to be
+parameter-aware. 
+
+Datatype parameters -- the type synonym {\tt Params} below -- can be
+encoded as a natural number. The {\tt Pars} function interprets a
+natural number as a right-nested product of types ({\tt Set}) ending in
+unit ({\tt ⊤}).
+
+\begin{verbatim}
+Params : Set = ℕ
+
+Pars  : Params → Set
+Pars zero = ⊤
+Pars (suc n) = Set × Pars n
+\end{verbatim}
+
+I now extend the closed type theory with one more primitive, a
+dependent record called {\tt Data}. Previously, a non-parameteric type like {\tt `ℕ} was
+encoded as a description, while a parameteric type like
+{\tt `Tree} was encoded as a {\it function} from its parameters to a
+description. Instead, now all datatypes will be encoded as {\tt Data} records,
+which can be interpreted as functions from their (possibly
+empty sequence) of parameters to their descriptions.
+
+\begin{verbatim}
+record Data : Set where
+  field
+    P : Params
+    E : Enum
+    B : (A : Pars P) → Branches E (λ _ → Desc)
+
+  C : (A : Pars P) → Tag E → Desc = λ A → case (λ _ → Desc) (B A)
+  D : (A : Pars P) → Desc = λ A → Sum E (C A)
+\end{verbatim}
+
+The {\tt Data} record contains three values, accessible via the
+accessor functions {\tt P}, {\tt E}, and {\tt B}. There is also a
+helper function {\tt D} (with the record fields in scope),
+which turns a record into a function from a
+right-nested product of parameters to a description. The {\tt D} helper
+function uses the {\tt C} helper function to define the right argument
+of the sum by constructing a function from tags to descriptions from
+the branches value {\tt B}.
+
+The {\tt B} value of the record is a function from parameters
+{\tt Pars} to branches, containing a description for each constructor
+in the enumeration {\tt E}. 
+Thus the descriptions contained in the branches {\tt B} 
+may ask for values of any type contained
+in the product of parameter types {\tt Pars P}.
+
+Note that outside of the record
+declaration, the {\tt Data} accessor
+functions ({\tt P}/{\tt E}/{\tt B}) and helper functions
+({\tt C}/{\tt D}) need to be qualified by ``Data.*''
+(e.g. {\tt Data.D}). Also, each of these functions takes an
+initial record argument of type {\tt Data}, in addition to the
+declared argument types.
+
+Now we can encode {\tt ℕ} as a {\tt Data} record with zero parameters
+rather than a raw description. Notice that the branches value {\tt B}
+is parameterized by unit, but the description does not make use of the
+unit value.
+
+\begin{verbatim}
+ℕR : Data
+ℕR = record { P = zero ; E = ℕE ; B = (λ u → End , Rec End , tt) }
+\end{verbatim}
+
+Similarly, we can encode {\tt Tree} as a {\tt Data} record, this time
+taking two parameters. The branches value {\tt B} thus takes a product of
+type {\tt Set × Set × ⊤}, and the description asks for arguments whose
+types are the first two components of the product (the datatype parameters).
+
+\begin{verbatim}
+TreeR : Data
+TreeR = record { P = 2 ; E = TreeE ; B = (λ A-B-u →
+    Arg (proj₁ A-B-u) End
+  , Arg (proj₁ (proj₂ A-B-u)) End
+  , Rec (Rec End) , tt) }
+\end{verbatim}
+
+The subsequent generic ``axioms'' for type formation, introduction,
+and elimination will all be parameterized over {\tt Data} records,
+rather than just descriptions, so that they can do the right thing
+with datatype parameters.
+
+\subsection{Generic Type Formation}
+
+Now we develop the generic type former {\tt Form}. When we apply
+{\tt Form} to some {\tt Data} record, we expect the type to match the
+expected axiomatic type formation rule.
+
+\begin{verbatim}
+`ℕ : Set = Form ℕR
+`Tree : (A B : Set) → Set = Form TreeR
+\end{verbatim}
+
+I implement the generic type formation algorithm, {\tt Form},
+in 3 parts.
+
+\begin{mypartf}
+\label{partf:one}
+Curry datatype parameters as explicit arguments.
+\end{mypartf}
+
+\begin{mypartf}
+\label{partf:two}
+Insert an implicit datatype parameter of type unit.
+\end{mypartf}
+
+\begin{mypartf}
+\label{partf:three}
+Convert datatype record to a description by applying parameters.
+\end{mypartf}
+
+Above we saw a definition of {\tt `Tree} satisfying its expected type
+in terms of {\tt Form} applied to the tree datatype record.
+Before I give the definition of {\tt Form}, let's develop our
+intuition by seeing what value it produces. In the example below, the
+comments (introduced using two dashes {\tt --}) on the right indicate
+which lines of code satisfy each Part$_F$ of the algorithm.
+
+\begin{verbatim}
+Form TreeR ⇝
+  λ A B →                                          -- Parts 1 & 2
+    μ (Sum ("leaf₁" ∷ "leaf₂" ∷ "branch" ∷ []) -- Part 3
+           (case (λ _ → Desc)
+             (Arg A End , Arg B End , Rec (Rec End) , tt)))
+\end{verbatim}
+
+{\tt Form TreeR} satisfies \refpartf{one} by producing a function
+whose parameters are a curried sequence of datatype arguments, rather
+than a single product of arguments. \refpartf{two}
+is satisfied because the sequence of parameters does not end in an
+argument of type unit (i.e. it's not {\tt λ A B u → ...}).
+Finally, \refpartf{three} is satisfied by
+applying the primitive fixpoint type former ({\tt μ}) to a description produced
+from the datatype record.
+
+We can
+understand the generic definition of {\tt Form} by comparing it
+to the structure produced by {\tt Form TreeR}, given above.
+
+\begin{verbatim}
+Form : (R : Data)
+  → CurriedPars (Data.P R) λ p     -- Parts 1 & 2
+  → Set
+Form R =
+  curryPars (Data.P R) (λ p → Set) -- Parts 1 & 2
+            (λ p → μ (Data.D R p)) -- Part 3
+\end{verbatim}
+
+\refpartf{three} is implemented simply by using the conversion
+function ({\tt Data.D}) from records to descriptions, defined
+previously in the {\tt Data} record module.
+However, {\tt Form} expects
+curried parameters while {\tt Data.D} expects uncurried parameters.
+This is resolved by {\tt curryPars}, which converts a value of
+type {\tt UncurriedPars} to a value of type {\tt CurriedPars}, implementing
+\refpartf{one} and \refpartf{two}.
+The type synonym {\tt UncurriedPars}
+is defined as a function type from a product of datatype parameters,
+to a value of some return type that may depend on the parameters.
+
+\begin{verbatim}
+UncurriedPars : (P : Params) (X : Pars P → Set) → Set
+UncurriedPars P X = (xs : Pars P) → X xs
+
+UncurriedPars (Data.P TreeR) ⇝
+  λ X → (xs : Set × Set × ⊤) → X xs
+\end{verbatim}
+
+{\tt CurriedPars} implements \refpartf{one} in the {\tt suc} case 
+by returning function types (rather than product types) for each
+datatype parameter.
+\refpartf{two} is implemented in the {\tt zero} case by ending in the
+return type applied to the unit type constructor ({\tt X tt}), instead
+of taking a final argument of type unit ({\tt (u : ⊤) → X u}). 
+
+\begin{verbatim}
+CurriedPars : (P : Params) (X : Pars P → Set) → Set
+CurriedPars zero X = X tt                         -- Part 2
+CurriedPars (suc n) X =
+  (A : Set) → CurriedPars n (λ As → X (A , As)) -- Part 1
+
+CurriedPars (Data.P TreeR) ⇝
+  λ X → (A : Set) → (B : Set) → X (A , B , tt)
+\end{verbatim}
+
+\subsection{Generic Value Introduction}
+
+Now we will develop the generic value introduction rule, or
+constructor, {\tt inj}. When we apply {\tt inj} to some
+{\tt Data} record and some constructor tag, we expect the type to
+match the expected axiomatic introduction rule.
+
+\begin{verbatim}
+`leaf₁ : {A B : Set} → A → `Tree A B = inj TreeR leaf₁T
+`leaf₂ : {A B : Set} → B → `Tree A B = inj TreeR leaf₂T
+`node : {A B : Set} → `Tree A B → `Tree A B → `Tree A B =
+  inj TreeR nodeT
+\end{verbatim}
+
+I implement the generic value introduction algorithm, {\tt inj},
+in 5 parts.
+
+\begin{myparti}
+\label{parti:one}
+Curry datatype parameters as implicit arguments.
+\end{myparti}
+
+\begin{myparti}
+\label{parti:two}
+Insert an implicit datatype parameter of type unit.
+\end{myparti}
+
+\begin{myparti}
+\label{parti:three}
+Convert datatype record to a description by applying parameters.
+\end{myparti}
+
+\begin{myparti}
+\label{parti:four}
+Curry the constructor tag and constructor arguments.
+\end{myparti}
+
+\begin{myparti}
+\label{parti:five}
+Insert an implicit argument of type unit.
+\end{myparti}
+
+First, let's analyze the value of {\tt inj} applied only to
+the tree record, but not a constructor tag.
+
+\begin{verbatim}
+inj TreeR ⇝
+  λ {A} {B} t →                    -- Parts 1 & 2
+    let
+      TreeE = "leaf₁" ∷ "leaf₂" ∷ "branch" ∷ []
+      TreeC = case (λ _ → Desc)
+        (Arg A End , Arg B End , Rec (Rec End) , tt)
+      TreeD = Sum TreeE TreeC      -- Part 3
+    in
+    curryEl (TreeC t)              -- Parts 4 & 5
+      (μ D) (λ xs → init (t , xs))
+\end{verbatim}
+
+{\tt inj TreeR} satisfies \refparti{one} by currying parameters
+in a matter similar to {\tt Form}. However, unlike {\tt Form},
+{\tt inj} curries datatype parameters as {\it implicit}
+arguments rather than {\it explicit} arguments. Similarly,
+\refparti{two} is satisfied by inserting an {\it implicit} unit
+parameter. {\tt inj} converts a datatype record to a description,
+satisfying \refparti{three},
+exactly like {\tt Form}, except above I used
+{\tt let} bindings to avoid duplication in the code.
+
+\refparti{four} and \refparti{five} are implemented by {\tt curryEl},
+discussed later. For now, let's see how these parts are satisfied in
+the specific instance where {\tt inj} is applied to the
+{\tt nodeT} constructor tag.
+
+\begin{verbatim}
+inj TreeR nodeT ⇝
+  λ {A} {B}                     -- Parts 1 & 2
+    t₁ t₂                       -- Parts 4 & 5
+    →
+    init (nodeT , t₁ , t₂ , tt) -- Parts 4 & 5
+\end{verbatim}
+
+\refparti{four} is satisfied by producing an explicit curried sequence
+({\tt t₁ t₂}) of {\tt nodeT} constructor arguments. \refparti{five} is satisfied
+because the sequence of constructor arguments does not end in an
+argument of type unit, and the unit value ({\tt tt}) is implicitly
+inserted within {\tt init}.
+
+Now we can understand the generic definition of {\tt inj}.
+
+\begin{verbatim}
+inj : (R : Data)
+  → ICurriedPars (Data.P R) λ p                   -- Parts 1 & 2
+  → let D = Data.D R p                            -- Part 3
+  in CurriedEl D (μ D)                             -- Parts 4 & 5
+inj R = icurryPars (Data.P R)                      -- Parts 1 & 2
+  (λ p → let D = Data.D R p in CurriedEl D (μ D)) -- Part 3
+  (λ p t → curryEl (Data.C R p t)                 -- Parts 4 & 5
+    (μ (Data.D R p))
+    (λ xs → init (t , xs))
+  )
+\end{verbatim}
+
+\refparti{three} is implemented by the conversion function
+{\tt Data.D}, just like in {\tt Form}.
+\refparti{one} and \refparti{two} are implemented by
+{\tt icurryPars}, which converts a value of type {\tt UncurriedPars} to
+a value of type {\tt ICurriedPars}. The difference between {\tt CurriedPars} and
+{\tt ICurriedPars} is that {\tt ICurriedPars}
+curries {\it implicit} parameters.
+
+\begin{verbatim}
+ICurriedPars : (P : Params) (X : Pars P → Set) → Set
+ICurriedPars zero X = X tt                         -- Part 2
+ICurriedPars (suc n) X =
+  {A : Set} → ICurriedPars n (λ As → X (A , As)) -- Part 1
+
+ICurriedPars (Data.P TreeR) ⇝
+  λ X → {A : Set} → {B : Set} → X (A , B , tt)
+\end{verbatim}
+
+\refparti{four} and \refparti{five} are implemented by
+{\tt curryEl}, which converts constructor arguments of type
+{\tt UncurriedEl} to constructor arguments of type {\tt CurriedEl}.
+The type synonym {\tt UncurriedEl}
+is defined as a function type from a product of arguments, to a return
+type.
+
+\begin{verbatim}
+UncurriedEl : (D : Desc) (X : Set) → Set = λ D X → El D X → X
+\end{verbatim}
+
+{\tt CurriedEl} implements \refparti{four} by returning function
+types for constructors {\tt Rec}, {\tt Arg}, and {\tt Sum}.
+\refparti{five} is implemented in the {\tt End} case by ending with
+just {\tt X} instead of {\tt ⊤ → X}.
+
+\begin{verbatim}
+CurriedEl : (D : Desc) (X : Set) → Set
+CurriedEl End X = X                        -- Part 5     
+CurriedEl (Rec D) X = X → CurriedEl D X   -- Part 4
+CurriedEl (Arg A D) X = A → CurriedEl D X -- Part 4
+CurriedEl (Sum E B) X =
+  (t : Tag E) → CurriedEl (B t) X         -- Part 4
+\end{verbatim}
+
+\subsection{Generic Value Elimination}
+
+Now I briefly touch upon the generic value elimination rule, or
+primitive recursion principle, {\tt fold}. When we apply {\tt fold} to
+some {\tt Data} record, we expect the type to match the expected
+axiomatic elimination rule.
+
+\begin{verbatim}
+`mapTree : {A B X Y : Set}
+  (f : A → X) (g : B → Y) → `Tree A B → `Tree X Y
+`mapTree f g = fold TreeR
+  (λ a → `leaf₁ (f a))
+  (λ b → `leaf₂ (g b))
+  (λ t₁ rec₁ t₂ rec₂ → `node rec₁ rec₂)
+\end{verbatim}
+
+I implement the generic value elimination algorithm,
+{\tt fold}, in 8 parts.
+
+\begin{myparte}
+\label{parte:one}
+Curry datatype parameters as implicit arguments.
+\end{myparte}
+
+\begin{myparte}
+\label{parte:two}
+Insert an implicit datatype parameter of type unit.
+\end{myparte}
+
+\begin{myparte}
+\label{parte:three}
+Convert datatype record to a description by applying parameters.
+\end{myparte}
+
+\begin{myparte}
+\label{parte:four}
+Curry the product of case-analyzed branches.
+\end{myparte}
+
+\begin{myparte}
+\label{parte:five}
+Curry constructor tags and constructor arguments.
+\end{myparte}
+
+\begin{myparte}
+\label{parte:six}
+Change tuples of recursive argument and recursive call pairs to
+untupled, curried arguments.
+\end{myparte}
+
+\begin{myparte}
+\label{parte:seven}
+Insert an implicit argument of type unit.
+\end{myparte}
+
+\begin{myparte}
+\label{parte:eight}
+Case analyze the constructor tag using the convoy pattern.
+\end{myparte}
+
+The implementation of {\tt fold} is by far the most complex of the
+generic constructions presented here. I do not have enough space to
+give the details of implementing {\tt fold}, but the implementation follows
+the same general principles used in the implementation of
+{\tt Form} and {\tt inj}. \refparte{one} through \refparte{three} are
+the same as the parts for {\tt inj}. \refparte{four} curries a product
+of {\tt Branches} arguments, one for each constructor.
+\refparte{five} through \refparte{seven} involves currying the
+function arguments of each branch, and correctly extracting the
+recursive arguments and their corresponding recursive call values.
+Finally, \refparte{eight} involves an implicit dependent case
+analysis of constructor tags by using the {\it convoy pattern}
+(mentioned in \refsec{desc-closed}).
+
+\section{Conclusion}
+
+I have shown how to internalize type theory constructions (type
+formation rules, value introduction rules, and value elimination
+rules) in a closed type theory that are normally axioms in an open
+type theory. Each type theory construction can be defined as a generic
+function in terms of the primitives of a closed type theory. In this
+paper I used non-dependent types for all constructions, but Tim Sheard
+and I have written a paper that extends the generic introduction and
+elimination rules to dependent types. Because we limited ourselves to
+the simpler non-dependent setting in this paper, we realized that type
+formers can also be given generically. In our dependent types paper
+we did not generically define type formation, but
+thanks to the current work we have since written code that generically defines
+type formation for dependent types too.
+
+\bibliographystyle{plain}
+\bibliography{rpe}
+
+\end{document}
