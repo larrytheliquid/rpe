@@ -1,5 +1,5 @@
 open import Relation.Binary.PropositionalEquality
-module Axioms where
+module RPE.Axioms where
 
 postulate
   ℕ : Set

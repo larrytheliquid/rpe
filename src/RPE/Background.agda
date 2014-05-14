@@ -1,4 +1,4 @@
-module Background where
+module RPE.Background where
 
 data ℕ : Set where
   zero : ℕ

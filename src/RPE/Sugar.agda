@@ -6,7 +6,7 @@ open import Data.List
 open import Data.String
 open import Relation.Binary.PropositionalEquality
 open import Function
-module Sugar where
+module RPE.Sugar where
 
 ----------------------------------------------------------------------
 
